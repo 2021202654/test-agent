@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 环境 & 密钥
+.env
+llm_config.json
+
+# 运行产出
+reports/
+findings/
+exports/
+
+# 临时文件
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PDF（文件过大，按需上传）
+*.pdf
+
+# 模型权重（绝不上传）
+*.safetensors
+*.bin
+*.gguf
+*.pt
+*.pth
+*.onnx
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 数据文件（太大，不上传）
+*.csv
+*.jsonl
+*.faiss
+
+# 空目录占位（不需要）
+*.gitkeep

@@ -1,0 +1,9 @@
+{
+    "_comment": "自定义 LLM 配置 —— 修改此文件后无需改代码即可切换模型",
+    "_usage": "cp llm_config.example.json llm_config.json 然后修改下面的值",
+    "base_url": "https://api.example.com/v1",
+    "api_key": "sk-your-api-key-here",
+    "model": "your-model-name",
+    "temperature": 0.3,
+    "max_tokens": 2048
+}

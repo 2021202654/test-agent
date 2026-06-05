@@ -1,0 +1,17 @@
+# 气固热导 Agent 框架依赖
+# 核心（必须）
+pydantic>=2.0
+httpx>=0.25
+
+# PDF 解析（PDFAnalysisTool）
+pymupdf>=1.23
+
+# 向量检索（FAISS 重建后需要，目前 CSV 检索可用）
+faiss-cpu>=1.7
+
+# WSL2 本地推理（Ollama 不需要这些，但如果走 transformers 直接加载需要）
+# torch>=2.1
+# transformers>=4.40
+# accelerate>=0.28
+# bitsandbytes>=0.43
+# peft>=0.10
