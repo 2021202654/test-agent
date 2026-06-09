@@ -81,17 +81,17 @@ async def run_once(config: AgentConfig, task: str):
     print(f"Mode: {config.mode}")
     print(f"Tools: {agent.registry.list_names()}")
     print(f"{'='*60}\n")
-    print(f"📝 任务：{task}\n")
+    print(f"[*] Task: {task}\n")
     print(f"{'─'*60}")
-    print("🤖 Agent 思考中...\n")
+    print("[...] Agent thinking...\n")
 
     try:
         reply = await agent.run(task)
         print(reply.content)
         print(f"\n{'─'*60}")
-        print(f"📊 元数据：{reply.metadata}")
+        print(f"[i] Metadata: {reply.metadata}")
     except Exception as e:
-        print(f"\n❌ Agent 运行异常：{e}")
+        print(f"\n[!] Agent error：{e}")
     finally:
         await agent.close()
 
@@ -111,9 +111,9 @@ async def interactive(config: AgentConfig):
 
     while True:
         try:
-            first_line = input("👤 你：")
+            first_line = input("You: ")
         except (EOFError, KeyboardInterrupt):
-            print("\n👋 Agent 已退出")
+            print("\n[bye] Agent exited")
             break
 
         if not first_line.strip():
@@ -122,7 +122,7 @@ async def interactive(config: AgentConfig):
         # ── 多行粘贴模式 ──────────────────────────
         if first_line.strip() == '"""':
             lines = []
-            print("📋 （多行输入模式，输入 \"\"\" 结束）")
+            print("> （多行输入模式，输入 \"\"\" 结束）")
             while True:
                 try:
                     line = input()
@@ -138,11 +138,11 @@ async def interactive(config: AgentConfig):
             task = first_line.strip()
 
         if task.lower() == "quit":
-            print("👋 Agent 已退出")
+            print("[bye] Agent exited")
             break
         if task.lower() == "clear":
             agent.memory.clear()
-            print("🧹 记忆已清空\n")
+            print("[clear] Memory cleared\n")
             continue
         if task.lower() == "info":
             print(agent.describe())
@@ -150,7 +150,7 @@ async def interactive(config: AgentConfig):
             print(f"Working: {agent.memory.working.snapshot()}\n")
             continue
 
-        print("🤖 Agent：", end="", flush=True)
+        print("Agent: ", end="", flush=True)
         try:
             reply = await agent.run(task)
             print(reply.content)

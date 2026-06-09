@@ -21,7 +21,7 @@ from .web_search import WebSearchTool
 # ── Prompt 模板 ──────────────────────────────────────
 
 HYPOTHESIS_GENERATION_PROMPT = """\
-你是一名高超声速气固界面耦合研究领域的假设生成专家。
+你是高超声速气固界面耦合领域的假设生成专家。基于文献综述识别研究Gap，生成可验证假设。
 
 # 文献综述
 {literature_review}
@@ -32,53 +32,36 @@ HYPOTHESIS_GENERATION_PROMPT = """\
 # 物理约束
 {physics_constraints}
 
-# 任务
-1. 识别文献综述中的研究 Gap（使用层次化框架）
-2. 为每个 Gap 生成可验证的科学假设
-3. 用物理约束验证每个假设
-4. 评分并排序
-
 # Gap 识别框架
-- Level 1 矛盾点：不同文献对同一现象给出矛盾结论
-- Level 2 未覆盖区域：某些参数范围或工况缺乏数据
-- Level 3 过度简化：现有模型忽略了重要的物理效应
-- Level 4 跨尺度不一致：连续介质假设在稀薄区域失效
+- L1 矛盾点：不同文献对同一现象给出矛盾结论
+- L2 未覆盖区域：参数范围或工况缺乏数据
+- L3 过度简化：模型忽略重要物理效应
+- L4 跨尺度不一致：连续介质假设在稀薄区失效
 
-# 假设生成原则
-- 必须可验证（通过计算、实验或文献对比）
-- 必须符合物理定律（能量守恒、质量守恒、动量守恒）
-- 必须有明确的成功判据
-- 预测结果应尽可能具体（数值或趋势）
+# 要求
+- 假设必须可验证、符合物理定律、有明确成功判据
+- description 控制在50字以内，evidence 最多2条，hypothesis 控制在80字以内
+- 输出严格 JSON，不要任何额外文字
 
-# 评分标准
-- innovation_score（0-100）：与现有文献的差异度，越高越新颖
-- feasibility_score（0-100）：验证所需资源是否可及，越高越可行
-- scientific_value_score（0-100）：解决实际问题的程度，越高越有价值
-
-# 输出格式（严格 JSON，不要多余文字）
+# 输出格式
 {{
   "gap_analysis": [
     {{
       "level": 1,
-      "description": "Gap 描述",
-      "evidence": ["支持证据1", "支持证据2"],
+      "description": "Gap简述（≤50字）",
+      "evidence": ["证据1"],
       "hypotheses": [
         {{
-          "hypothesis": "假设陈述",
-          "prediction": "具体预测结果（数值或趋势）",
+          "hypothesis": "假设（≤80字）",
+          "prediction": "预测（数值或趋势）",
           "validation_method": "验证方法",
-          "physics_constraints_involved": ["涉及的物理方程/约束"],
-          "parameters": [
-            {{"name": "参数名", "value": 数值或null}}
-          ],
           "innovation_score": 80,
-          "feasibility_score": 85,
-          "scientific_value_score": 75
+          "feasibility_score": 80,
+          "scientific_value_score": 80
         }}
       ]
     }}
-  ],
-  "top_hypothesis_index": {{"gap": 0, "hypothesis": 0}}
+  ]
 }}
 """
 
@@ -139,7 +122,18 @@ class HypothesisGenerator(Action):
             search_tool: 本地文献检索工具，None 则内部创建
             web_tool: OpenAlex 外部检索工具，None 则内部创建
         """
+        # 假设生成需要更长的输出，创建专用 LLM 实例（max_tokens=4096）
+        from core.llm import LLMConfig
         self.llm = llm
+        hyp_config = LLMConfig(
+            base_url=llm.config.base_url,
+            api_key=llm.config.api_key,
+            model=llm.config.model,
+            temperature=llm.config.temperature,
+            max_tokens=8192,  # 假设生成 JSON 较长，需要充足空间
+            timeout=llm.config.timeout,
+        )
+        self._hypothesis_llm = LLMInterface(hyp_config)
         self.search_tool = search_tool or LiteratureSearchTool()
         self.web_tool = web_tool or WebSearchTool()
         self.physics = PhysicsConstraintLayer()
@@ -176,9 +170,9 @@ class HypothesisGenerator(Action):
             physics_constraints=physics_constraints,
         )
 
-        # Step 5: LLM 生成假设
+        # Step 5: LLM 生成假设（使用专用长输出实例）
         try:
-            response = await self.llm.chat([Message.user(prompt)])
+            response = await self._hypothesis_llm.chat([Message.user(prompt)])
             raw_content = response.content
         except Exception as e:
             return json.dumps(
@@ -206,20 +200,16 @@ class HypothesisGenerator(Action):
     # ── 内部方法 ──────────────────────────────────
 
     def _build_knowledge_boundary(self, topic: str) -> str:
-        """构建已知知识边界描述。"""
+        """构建已知知识边界描述（精简版）。"""
         return (
-            f"研究主题：{topic}\n"
-            "已知边界：\n"
-            "- 气固界面催化复合系数通常 γ ∈ [0, 1]\n"
-            "- 连续介质假设在 Kn < 0.01 时成立\n"
-            "- Fay-Riddell 公式仅适用于平衡催化壁面\n"
-            "- 高超声速再入通常 Ma ∈ [5, 30]\n"
-            "- 常见 TPS 材料：SiO₂, SiC, Al₂O₃, C-Phenolic, RCG\n"
-            "- 高温气体效应在 T > 2000K 时显著\n"
+            f"主题：{topic}\n"
+            "已知边界：γ ∈ [0,1]; σ_v,σ_T ∈ [0,1]; 连续流 Kn<0.01; "
+            "Fay-Riddell 仅适用平衡催化壁面; 高超声速 Ma∈[5,30]; "
+            "TPS材料: SiO₂,SiC,Al₂O₃,C-Phenolic,RCG; T>2000K 高温效应显著"
         )
 
     def _parse_llm_output(self, raw: str) -> dict[str, Any]:
-        """解析 LLM 输出为 JSON。"""
+        """解析 LLM 输出为 JSON。支持截断 JSON 修复。"""
         # 尝试提取 JSON 块
         text = raw.strip()
 
@@ -233,21 +223,63 @@ class HypothesisGenerator(Action):
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            # 尝试找 JSON 花括号范围
-            start = text.find("{")
-            end = text.rfind("}") + 1
-            if start >= 0 and end > start:
-                try:
-                    return json.loads(text[start:end])
-                except json.JSONDecodeError:
-                    pass
+            pass
 
-            # 解析失败，返回原始文本
-            return {
-                "gap_analysis": [],
-                "raw_output": text,
-                "parse_error": "LLM 输出无法解析为 JSON",
-            }
+        # 尝试找 JSON 花括号范围
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            try:
+                return json.loads(text[start:end])
+            except json.JSONDecodeError:
+                pass
+
+        # 尝试修复截断的 JSON：补全未闭合的括号
+        if start >= 0:
+            snippet = text[start:]
+            repaired = self._repair_json(snippet)
+            if repaired is not None:
+                return repaired
+
+        # 解析失败，返回原始文本
+        return {
+            "gap_analysis": [],
+            "raw_output": text,
+            "parse_error": "LLM 输出无法解析为 JSON",
+        }
+
+    def _repair_json(self, snippet: str) -> dict[str, Any] | None:
+        """尝试修复截断的 JSON（补全括号）。"""
+        # 计算未闭合的括号
+        open_braces = snippet.count("{") - snippet.count("}")
+        open_brackets = snippet.count("[") - snippet.count("]")
+
+        if open_braces < 0 or open_brackets < 0:
+            return None  # 括号多了，不是简单截断
+
+        # 补全：先关闭未完成的字符串，再关闭括号
+        repaired = snippet.rstrip()
+
+        # 尝试在最后一个完整的值后截断，补全括号
+        # 去掉最后一个不完整的键值对
+        for trim_pattern in [",\n", ",\r\n", ",", "\n", "\r\n"]:
+            idx = repaired.rfind(trim_pattern)
+            if idx > 0:
+                repaired = repaired[:idx]
+                break
+
+        # 补全未闭合的引号
+        if repaired.count('"') % 2 != 0:
+            repaired += '"'
+
+        # 补全括号
+        repaired += "]" * max(0, open_brackets)
+        repaired += "}" * max(0, open_braces)
+
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            return None
 
     def _validate_with_physics(self, parsed: dict[str, Any]) -> dict[str, Any]:
         """用物理约束验证每个假设。"""
@@ -320,11 +352,16 @@ class HypothesisGenerator(Action):
 
     def _format_output(self, parsed: dict[str, Any], topic: str) -> str:
         """格式化输出为人类可读 + JSON 混合格式。"""
-        # 如果解析失败，直接返回
+        # 如果解析失败，返回干净的摘要（不输出截断 JSON，避免污染 LLM 上下文）
         if "parse_error" in parsed:
+            raw = parsed.get("raw_output", "")
+            # 提取已成功解析的部分做摘要
+            preview = raw[:300].replace("\n", " ") if raw else ""
             return (
-                f"⚠️ 假设生成遇到问题：{parsed['parse_error']}\n\n"
-                f"原始输出：\n{parsed.get('raw_output', '')}"
+                f"⚠️ 假设生成遇到问题：{parsed['parse_error']}。LLM 输出可能被截断，"
+                f"建议缩小检索范围或减少 max_hypotheses。"
+                f"\n\n📋 输出预览（前300字符）：{preview}..."
+                f"\n\n🔧 请调整 topic 参数或降低 max_hypotheses 后重试。"
             )
 
         # 人类可读摘要

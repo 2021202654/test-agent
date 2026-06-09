@@ -173,7 +173,7 @@ class AgentConfig:
         self,
         llm: str | LLMConfig = "vllm_local",
         mode: str = "react",
-        max_react_steps: int = 8,
+        max_react_steps: int = 12,
         max_plan_steps: int = 6,
         verbose: bool = False,
         # 路径配置
@@ -219,8 +219,12 @@ class AgentConfig:
                 "不编造数据，不虚构引用",
                 "生成的假设必须通过物理约束验证（参数边界、流态一致性、守恒律）",
                 "假设预测必须具体可验证（数值或明确趋势）",
+                "任务完成后必须调用 generate_report 工具将结论保存为 Markdown 报告",
+                "研究过程中发现关键结论时，调用 export_finding 逐条记录",
             ],
             mode=self.mode,
+            max_react_steps=self.max_react_steps,
+            max_plan_steps=self.max_plan_steps,
             verbose=self.verbose,
         )
 

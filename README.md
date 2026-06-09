@@ -1,15 +1,22 @@
 # 气固热导 AI Agent — 系统总览
 
-> 基于微调 LLM 的气动热物理研究 Agent，面向高超声速气固界面耦合领域的文献分析、知识推理与辅助研究。
+> 高超声速气固界面耦合 **AI Scientist** —— 从被动问答到自主科研
+> 基于 LLM + 10 工具 Agent + 物理约束验证，支持假设生成、实验设计、论文生成闭环
 
 ---
 
 ## 定位
 
-**LLM** = 专家的大脑（微调领域知识 + RAG 检索增强）
-**Agent** = 专家的手和眼（工具调用 + 多步推理 + 记忆管理 + 自主行动）
+```
+问答专家（v1）                AI Scientist（v2）🆕
+     ↓                              ↓
+回答"是什么"                    解决"为什么 + 还能怎样"
+检索 + 推理 → 报告              假设生成 → 实验验证 → 论文 → 评审
+     9 工具                          10 工具（+ HypothesisGenerator）
+```
 
-LLM 回答"是什么"，Agent 回答"怎么做"——找到最优检索策略、组合多源证据、批判性验证结论。
+**LLM** = 专家的大脑（微调领域知识 + RAG + 硅基流动/百炼 API）
+**Agent** = 科学家的手和眼（工具调用 + 多步推理 + 假设生成 + 物理约束验证）
 
 ---
 
@@ -19,11 +26,12 @@ LLM 回答"是什么"，Agent 回答"怎么做"——找到最优检索策略、
 用户输入
   ↓
 编排引擎（ReAct / Plan-Execute）
-  ├── 工具链（9 个：文献检索、数值计算、论文解析、格式导出）
+  ├── 工具链（10 个：文献检索、数值计算、论文解析、格式导出、**假设生成**）
   ├── 记忆系统（对话历史、研究上下文、RAG 桥接）
+  ├── 物理约束层（PhysicsConstraintLayer：参数边界/流态/守恒律验证）
   └── LLM 推理核（微调专家模型 + RAG + System Prompt）
   ↓
-多步推理 → 证据链合成 → 批判性验证 → 输出
+多步推理 → 证据链合成 → 假设生成 → 批判性验证 → 输出
 ```
 
 ---
@@ -32,7 +40,7 @@ LLM 回答"是什么"，Agent 回答"怎么做"——找到最优检索策略、
 
 | 目录 | 用途 | 关键产出 |
 |------|------|----------|
-| `01_架构设计/` | Agent 总架构、LLM-Agent 接口、系统边界 | 架构方案文档 |
+| `01_架构设计/` | Agent 总架构 + 🆕 **AI Scientist 5 模块设计** | 架构方案 + AI Scientist 文档 |
 | `02_工具链/` | 工具定义（检索/计算/解析）、Function Schema | 工具注册表 |
 | `03_编排引擎/` | 推理路由、ReAct 循环、Plan-Execute 状态机 | 编排逻辑 |
 | `04_记忆系统/` | 短期对话记忆、长期研究上下文、知识缓存 | 记忆管理 |
@@ -58,21 +66,26 @@ LLM 回答"是什么"，Agent 回答"怎么做"——找到最优检索策略、
 
 ## 当前状态
 
-**Phase 1：原型开发阶段**（2026-06-01 启动）
+**Phase 2：AI Scientist 跃迁**（2026-06-09 启动）
 
 - [x] Agent 框架选型 → 自研轻量框架（仿 MetaGPT Role-Action-Memory）
 - [x] 核心框架实现 → `core/`（Role + Action + Memory + Orchestrator + LLM Interface）
-- [x] 内置工具集 → `tools/`（9 个工具）
+- [x] 内置工具集 → `tools/`（**10 个工具**）
 - [x] 百炼 API 跑通 Agent 全流程 → 首份技术报告已生成
 - [x] Gradio Web UI → `app.py`
 - [x] DSW 部署 notebook → 4 个新 notebook（环境/下载/训练/部署）
+- [x] **HypothesisGenerator** → `tools/hypothesis.py`（AI Scientist 核心，LLM 注入架构）
+- [x] **PhysicsConstraintLayer** → `tools/physics_constraints.py`（物理约束验证）
+- [x] **AI Scientist 5 模块设计文档** → `01_架构设计/AI_Scientist_模块设计/`
+- [x] **硅基流动 API 预设** → `--llm siliconflow`（DeepSeek-V3，1+2 ¥/M）
 - [ ] FAISS 语义检索激活（需配置 embedding 模型）
 - [ ] 微调模型端到端验证（待 DSW 训练完成）
 - [ ] Agent 评测基准（`05_评测基准/`）
+- [ ] ExperimentDesigner / ResultAnalyzer / PaperWriter / AutoReviewer 实现
 
 ---
 
-## 工具链（9 个）
+## 工具链（10 个）
 
 | # | 工具 | 文件 | 功能 |
 |---|------|------|------|
@@ -85,6 +98,7 @@ LLM 回答"是什么"，Agent 回答"怎么做"——找到最优检索策略、
 | 7 | ReportTool | `report.py` | 结构化 Markdown 研究报告生成 |
 | 8 | ExportFindingTool | `report.py` | 单条研究发现追加记录 |
 | 9 | PandocExportTool | `pandoc_export.py` | Markdown → LaTeX / DOCX / PDF（XeLaTeX + CJK） |
+| 10 | 🆕 **HypothesisGenerator** | `hypothesis.py` | LLM 注入架构：文献检索→Gap 识别→假设生成→物理约束验证→评分排序 |
 
 ---
 
@@ -108,10 +122,12 @@ tools/
 ├── citation.py     # DOI 引文解析
 ├── pdf_parser.py   # PDF 论文解析
 ├── report.py       # 报告生成 + 发现记录
-└── pandoc_export.py # 格式导出（LaTeX/DOCX/PDF）
+├── pandoc_export.py # 格式导出（LaTeX/DOCX/PDF）
+├── hypothesis.py   # 🆕 AI Scientist：假设生成器（LLM 注入）
+└── physics_constraints.py # 🆕 物理约束验证层
 
-config.py           # 统一配置（4 套 LLM 预设）
-run_agent.py        # CLI 入口
+config.py           # 统一配置（5 套 LLM 预设：bailian/siliconflow/vllm_local/ollama/custom）
+run_agent.py        # CLI 入口（--llm siliconflow 🆕）
 app.py              # Gradio Web UI 入口
 ```
 
@@ -127,11 +143,17 @@ cd 05_AI_Agent
 # 交互模式（百炼 API，即开即用）
 python run_agent.py --llm bailian
 
+# 硅基流动（性价比最高，DeepSeek-V3）
+python run_agent.py --llm siliconflow
+
 # 单次任务
 python run_agent.py --llm bailian --task "计算马赫数15下的驻点热流密度"
 
 # Plan-Execute 模式
 python run_agent.py --llm bailian --mode plan_execute --task "评估气固界面催化模型跨尺度适用性"
+
+# AI Scientist：假设生成
+python run_agent.py --llm bailian --verbose --task "分析气固界面催化系数建模的研究Gap，生成3个可验证假设"
 
 # 自定义 LLM 端点（vLLM / Ollama 等）
 python run_agent.py --llm custom --base-url http://localhost:8000/v1

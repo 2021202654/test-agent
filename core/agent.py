@@ -39,6 +39,8 @@ class Agent:
         goal: str = "",
         constraints: list[str] | None = None,
         mode: str = "react",  # "react" | "plan_execute"
+        max_react_steps: int = 12,
+        max_plan_steps: int = 6,
         verbose: bool = False,
     ):
         self.llm = LLMInterface(llm_config or LLMConfig())
@@ -52,9 +54,9 @@ class Agent:
 
         self.mode = mode
         self.verbose = verbose
-        self._react = ReActOrchestrator(self.llm)
+        self._react = ReActOrchestrator(self.llm, max_steps=max_react_steps)
         self._react.verbose = verbose
-        self._plan_execute = PlanExecuteOrchestrator(self.llm)
+        self._plan_execute = PlanExecuteOrchestrator(self.llm, max_react_steps=max_react_steps, max_plan_steps=max_plan_steps)
         self._plan_execute.verbose = verbose
 
     # ── 工具管理 ────────────────────────────────────
@@ -88,19 +90,53 @@ class Agent:
 
         # 选择运行模式
         if self.mode == "plan_execute":
-            return await self._plan_execute.run(
+            result = await self._plan_execute.run(
                 task=task,
                 role_context=role_context,
                 memory=self.memory,
                 registry=self.role.registry,
             )
         else:
-            return await self._react.run(
+            result = await self._react.run(
                 task=task,
                 role_context=role_context,
                 memory=self.memory,
                 registry=self.role.registry,
             )
+
+        # ── 自动存档兜底 ──
+        # 如果 Agent 的最终回复较长（有实质内容），自动保存为报告
+        if result.content and len(result.content) > 200:
+            self._auto_save_report(task, result)
+
+        return result
+
+    def _auto_save_report(self, task: str, result: Message):
+        """将 Agent 最终回复自动保存为 Markdown 报告（兜底机制）。"""
+        from datetime import datetime
+        from pathlib import Path
+
+        reports_dir = Path(__file__).parent.parent / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # 用任务前40个字符做短标题
+        safe_title = task[:40].replace("?", "").replace(":", "：").replace("/", "_").replace("\\", "_")
+        filename = f"{timestamp}_{safe_title}.md"
+        filepath = reports_dir / filename
+
+        content = f"# Auto-saved Report\n\n"
+        content += f"**生成时间**：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        content += f"**原始任务**：{task}\n"
+        content += f"**模式**：{self.mode} | **步数**：{result.metadata.get('steps', '?')}\n\n"
+        content += "---\n\n"
+        content += result.content
+        content += "\n\n---\n*本报告由 Agent 自动存档生成。*\n"
+
+        try:
+            filepath.write_text(content, encoding="utf-8")
+        except Exception:
+            pass  # 静默失败，存档不是关键路径
 
     def run_sync(self, task: str) -> Message:
         """同步封装，方便在非 async 环境调用。"""

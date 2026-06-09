@@ -83,6 +83,9 @@ class Role:
         lines.append("\n你有可用的工具来完成你的任务。")
         lines.append("当需要检索文献时，使用文献检索工具。")
         lines.append("当需要数值计算时，使用气动热计算工具。")
+        lines.append("当需要执行Python代码时，使用代码执行工具。")
+        lines.append("**重要：当你得出研究结论后，务必调用 generate_report 工具将结果保存为 Markdown 报告。**")
+        lines.append("**你也可以在研究过程中随时调用 export_finding 工具记录中间发现。**")
         lines.append("仅在信息充足时才给出最终回答，不要编造数据。")
 
         return "\n".join(lines)

@@ -124,22 +124,25 @@ class AeroThermalComputeTool(Action):
         material = p.get("material", "SiO₂").strip()
         T = float(p.get("temperature", 1500))
 
+        # 材料数据库：γ_300K, γ_2000K, 活化温度(K), 参考
+        # 温度依赖模型：γ(T) ≈ γ_300 * exp(T_act * (1/300 - 1/T))
+        # 注意：此模型为工程近似，真实γ还受表面状态、分压、非平衡效应等影响
         DB = {
-            "sio2": (0.001, 0.01, "300–2000 K", "Scott NASA CR-198174; Stewart AIAA 2011"),
-            "sio₂": (0.001, 0.01, "300–2000 K", "Scott NASA CR-198174; Stewart AIAA 2011"),
-            "sic": (0.01, 0.1, "300–2000 K", "Scott NASA CR-198174"),
-            "al2o3": (0.005, 0.05, "300–2000 K", "Scott NASA CR-198174"),
-            "al₂o₃": (0.005, 0.05, "300–2000 K", "Scott NASA CR-198174"),
-            "quartz": (0.001, 0.005, "300–2000 K", "Scott NASA CR-198174"),
-            "pt": (0.01, 0.5, "300–1500 K", "铂，高催化活性；Scott NASA CR-198174"),
-            "platinum": (0.01, 0.5, "300–1500 K", "铂，高催化活性"),
-            "rcg": (0.001, 0.01, "300–2000 K", "Reaction Cured Glass; Stewart AIAA 2011"),
-            "si₃n₄": (0.001, 0.005, "300–1800 K", "待补充验证"),
+            "sio2":     (0.0008, 0.015,  800,  "SiO₂/石英类，γ随T缓慢上升；Scott NASA CR-198174; Stewart AIAA 2011"),
+            "sio₂":     (0.0008, 0.015,  800,  "SiO₂/石英类，γ随T缓慢上升；Scott NASA CR-198174; Stewart AIAA 2011"),
+            "sic":      (0.008,  0.08,  1200, "SiC，γ随T显著上升；Scott NASA CR-198174; He et al. Appl Surf Sci 2024"),
+            "al2o3":    (0.003,  0.04,  1000, "Al₂O₃，中等催化活性；Scott NASA CR-198174"),
+            "al₂o₃":    (0.003,  0.04,  1000, "Al₂O₃，中等催化活性；Scott NASA CR-198174"),
+            "quartz":   (0.0005, 0.008,  700,  "石英，最低催化活性之一；Scott NASA CR-198174"),
+            "pt":       (0.05,   0.3,  -2000, "铂，高催化活性，高温下因饱和效应γ下降；Scott NASA CR-198174"),
+            "platinum": (0.05,   0.3,  -2000, "铂，高催化活性，高温下因饱和效应γ下降"),
+            "rcg":      (0.0008, 0.012,  750,  "Reaction Cured Glass; Stewart AIAA 2011"),
+            "si₃n₄":    (0.001,  0.006,  900,  "Si₃N₄，待补充验证"),
         }
 
         key = material.lower().strip()
         if key in DB:
-            γ_low, γ_high, t_range, ref = DB[key]
+            γ_300, γ_2000, T_act, ref = DB[key]
         else:
             matched = None
             for k, v in DB.items():
@@ -147,21 +150,44 @@ class AeroThermalComputeTool(Action):
                     matched = v
                     break
             if matched:
-                γ_low, γ_high, t_range, ref = matched
+                γ_300, γ_2000, T_act, ref = matched
             else:
+                known = ", ".join(sorted(set(k.upper() for k in DB)))
                 return (
                     f"**{material}** 的催化复合系数不在当前数据库中。\n"
-                    f"已知材料：{', '.join(sorted(set(k.upper() for k in DB)))}\n"
+                    f"已知材料：{known}\n"
                     f"建议检索文献：'catalytic recombination coefficient {material}'"
                 )
 
+        # Arrhenius 型温度预测
+        T_clamped = max(300, min(3000, T))  # 物理合理范围
+        try:
+            γ_T = γ_300 * math.exp(T_act * (1/300 - 1/T_clamped))
+        except OverflowError:
+            γ_T = γ_2000 if T_act > 0 else γ_300
+
+        # 钳制在[γ_low, γ_high]内，避免外推极端值
+        γ_low = min(γ_300, γ_2000) * 0.5
+        γ_high = max(γ_300, γ_2000) * 2.0
+        γ_T = max(γ_low, min(γ_high, γ_T))
+
+        # 流态提示
+        regime_note = ""
+        if T > 2000:
+            regime_note = "\n⚠️ T > 2000K：需考虑离解效应，γ 可能偏离 Arrhenius 外推。"
+        if T < 300:
+            regime_note = "\n⚠️ T < 300K：低温数据稀少，外推不确定性大。"
+
         return (
-            f"**{material} 催化复合系数 γ**\n"
-            f"γ 范围：{γ_low} – {γ_high}（{t_range}）\n"
-            f"查询温度 {T:.0f} K 在此范围内\n"
-            f"工程估算推荐值（几何平均）：γ ≈ {math.sqrt(γ_low * γ_high):.4f}\n\n"
+            f"**{material} 催化复合系数 γ(T)**\n"
+            f"T = {T:.0f} K → **γ ≈ {γ_T:.2e}**（Arrhenius 模型估算）\n"
+            f"参考范围：γ(300K) ≈ {γ_300:.2e} ～ γ(2000K) ≈ {γ_2000:.2e}\n"
+            f"温度敏感性：活化温度 T_act ≈ {T_act:.0f} K\n"
+            f"{'↗ γ 随 T 升高而增大' if T_act > 0 else '↘ γ 随 T 升高而减小（饱和效应）'}"
+            f"{regime_note}\n"
             f"⚠️ γ 高度依赖表面状态（粗糙度、污染、氧化），实验值可能有数量级差异。\n"
-            f"参考：{ref}"
+            f"📚 参考：{ref}\n"
+            f"💡 提示：不同材料的 γ(T) 变化趋势不同，建议对多材料做参数扫描。"
         )
 
     # ── 单位换算 ────────────────────────────────────
