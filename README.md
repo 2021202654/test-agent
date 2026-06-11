@@ -83,6 +83,20 @@
 - [ ] Agent 评测基准（`05_评测基准/`）
 - [ ] ExperimentDesigner / ResultAnalyzer / PaperWriter / AutoReviewer 实现
 
+### 最近更新（2026-06-11）
+
+**安全审计修复**：
+- `core/orchestrator.py`：JSON 解析异常保护（try/except）；新增 `_BoundedCache` LRU 有界缓存（max=100），替换无限 dict 缓存
+- `tools/code_exec.py`：pip install 参数注入防御（包名白名单正则 + 禁止 `--index-url` 等危险 flag）
+- `.env`：百炼 API Key 已轮换
+
+**System Prompt 幻觉防御强化**：
+- `core/role.py`：新增规则 3（参数溯源强制）、规则 8（工具警告传递）、规则 11（公式名称与工具返回完全一致）、规则 12（补充数据标注来源）
+- `tools/search.py`：DOI 过滤，无 DOI 文献不传递给 LLM
+
+**端到端验证**：
+- Apollo 驻点热流 ReAct 测试通过（3.89 MW/m²，工具链完整：stagnation_heat_flux → knudsen_number → export_finding → generate_report）
+
 ---
 
 ## 工具链（10 个）

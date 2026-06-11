@@ -6,10 +6,10 @@
 
 | # | 工具 | 文件 | 功能 |
 |---|------|------|------|
-| 1 | `LiteratureSearchTool` | `../tools/search.py` | CSV 关键词 + FAISS 语义检索（3,326 篇文献库） |
+| 1 | `LiteratureSearchTool` | `../tools/search.py` | CSV 关键词 + FAISS 语义检索（3,326 篇）；**无 DOI 结果自动过滤** |
 | 2 | `WebSearchTool` | `../tools/web_search.py` | OpenAlex API 全球学术文献搜索（2.5 亿+ 论文） |
 | 3 | `AeroThermalComputeTool` | `../tools/compute.py` | 驻点热流 / Knudsen / 催化系数 / 单位换算 / 边界层厚度 |
-| 4 | `CodeExecutionTool` | `../tools/code_exec.py` | Python 子进程沙箱（30s 超时，支持 pip install） |
+| 4 | `CodeExecutionTool` | `../tools/code_exec.py` | Python 子进程沙箱（180s 超时，pip install 带安全过滤） |
 | 5 | `CitationResolverTool` | `../tools/citation.py` | CrossRef / OpenAlex DOI 解析 + BibTeX 生成 |
 | 6 | `PDFAnalysisTool` | `../tools/pdf_parser.py` | PyMuPDF 论文解析（元数据/全文/章节/参数/搜索） |
 | 7 | `ReportTool` | `../tools/report.py` | 结构化 Markdown 研究报告生成 |
