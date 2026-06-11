@@ -9,11 +9,37 @@
 from __future__ import annotations
 
 import json
+from collections import OrderedDict
 from typing import Any
 
 from .action import ActionRegistry
 from .llm import LLMInterface
 from .memory import Memory, Message
+
+
+# ── 有上限的工具调用缓存（防止内存耗尽）───────────────
+_CALL_CACHE_MAX_SIZE = 100
+
+
+class _BoundedCache:
+    """带 LRU 淘汰的有界缓存。超出 max_size 后自动淘汰最旧条目。"""
+
+    def __init__(self, maxsize: int = _CALL_CACHE_MAX_SIZE):
+        self._data: OrderedDict[tuple, str] = OrderedDict()
+        self._maxsize = maxsize
+
+    def get(self, key: tuple) -> str | None:
+        if key not in self._data:
+            return None
+        self._data.move_to_end(key)  # LRU: 访问过的移到末尾
+        return self._data[key]
+
+    def set(self, key: tuple, value: str) -> None:
+        if key in self._data:
+            self._data.move_to_end(key)
+        elif len(self._data) >= self._maxsize:
+            self._data.popitem(last=False)  # 淘汰最旧的
+        self._data[key] = value
 
 
 # ── ReAct 模式 ─────────────────────────────────────
@@ -53,7 +79,7 @@ class ReActOrchestrator:
 
         steps = 0
         final_reply = ""
-        _call_cache: dict[tuple, str] = {}  # (tool_name, args_key) → result_preview
+        _call_cache = _BoundedCache()  # 有界 LRU 缓存，上限 100 条
 
         while steps < self.max_steps:
             steps += 1
@@ -76,20 +102,36 @@ class ReActOrchestrator:
 
                 for tc in response.tool_calls:
                     func_name = tc["function"]["name"]
-                    func_args = json.loads(tc["function"]["arguments"])
+                    try:
+                        func_args = json.loads(tc["function"]["arguments"])
+                    except json.JSONDecodeError as e:
+                        tool_result = (
+                            f"[arguments parse error] Tool '{func_name}' received malformed JSON arguments: {e}. "
+                            f"Raw arguments: {tc['function']['arguments'][:200]}. "
+                            f"Please retry with properly formatted JSON arguments."
+                        )
+                        messages.append(
+                            Message.tool_result(
+                                content=tool_result,
+                                tool_call_id=tc["id"],
+                                tool_name=func_name,
+                            )
+                        )
+                        continue
 
                     if self.verbose:
                         print(f"\n  [tool] {func_name}({json.dumps(func_args, ensure_ascii=False)})")
 
-                    # ── 去重：相同工具+相同参数不重复执行 ──
+                    # ── 去重：相同工具+相同参数不重复执行（LRU 有界缓存）──
                     args_key = tuple(sorted(
                         (k, str(v)) for k, v in func_args.items()
                     ))
                     cache_key = (func_name, args_key)
-                    if cache_key in _call_cache:
+                    cached = _call_cache.get(cache_key)
+                    if cached is not None:
                         tool_result = (
                             f"[duplicate call skipped] Already called {func_name} with "
-                            f"these args. Previous result summary:\n{_call_cache[cache_key]}"
+                            f"these args. Previous result summary:\n{cached}"
                         )
                         if self.verbose:
                             print(f"  [skip] duplicate call, using cached result")
@@ -103,8 +145,8 @@ class ReActOrchestrator:
                                 tool_result = await action.run(**func_args)
                             except Exception as e:
                                 tool_result = f"[tool error] {func_name}: {e}"
-                        # 缓存
-                        _call_cache[cache_key] = str(tool_result)[:300]
+                        # 缓存（上限 100 条，LRU 淘汰）
+                        _call_cache.set(cache_key, str(tool_result)[:300])
 
                     if self.verbose:
                         preview = str(tool_result)[:500]

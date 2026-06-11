@@ -17,12 +17,25 @@ Agent 可以在推理过程中执行 Python 代码来完成：
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 from core.action import Action
+
+# pip 包名白名单正则：只允许纯字母数字下划线连字符
+_SAFE_PKG_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+# 禁止的 pip 参数（防止 --index-url / --extra-index-url 等注入）
+_FORBIDDEN_PIP_FLAGS = re.compile(
+    r"--(\w+-?)*\s+"
+    r"("
+    r"index-url|extra-index-url|trusted-host|proxy|retries|timeout|"
+    r"src|constraint|no-deps|pre|extra|editable|src-dir|config-settings"
+    r")",
+    re.IGNORECASE,
+)
 
 
 class CodeExecutionTool(Action):
@@ -87,6 +100,13 @@ class CodeExecutionTool(Action):
         install_log = ""
         if install_packages:
             for pkg in install_packages:
+                # 防御：包名格式校验 + 禁止危险参数
+                if not _SAFE_PKG_PATTERN.match(pkg):
+                    install_log += f"[pip] {pkg}: 拒绝安装 — 包名包含非法字符（仅允许 a-zA-Z0-9_-）\n"
+                    continue
+                if _FORBIDDEN_PIP_FLAGS.search(pkg):
+                    install_log += f"[pip] {pkg}: 拒绝安装 — 禁止通过包名传递 pip 选项（如 --index-url）\n"
+                    continue
                 try:
                     result = subprocess.run(
                         [sys.executable, "-m", "pip", "install", pkg, "-q"],

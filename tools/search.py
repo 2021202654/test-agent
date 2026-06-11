@@ -136,7 +136,18 @@ class LiteratureSearchTool(Action):
         if not results:
             return f"未找到与 '{query}' 相关的文献。建议尝试更广泛的关键词，或检查文献库路径配置。"
 
-        return self._format_results(query, results[:top_k])
+        # 过滤：无DOI的结果不允许传递给LLM（防止幻觉引用）
+        valid_results = [r for r in results[:top_k] if r.get("doi", "").strip()]
+        invalid_count = len(results[:top_k]) - len(valid_results)
+        if invalid_count > 0:
+            filtered_note = f"（已过滤 {invalid_count} 条无DOI记录）"
+        else:
+            filtered_note = ""
+
+        if not valid_results:
+            return f"未找到与 '{query}' 相关且包含DOI的文献。请尝试其他关键词。{filtered_note}"
+
+        return self._format_results(query, valid_results) + filtered_note
 
     # ── 检索实现 ────────────────────────────────────
 
