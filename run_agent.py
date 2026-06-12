@@ -190,6 +190,10 @@ def main():
         help="Print tool call details",
     )
     parser.add_argument(
+        "--critique-rounds", type=int, default=2,
+        help="Number of self-critique rounds after ReAct loop (default 2, set to 0 to disable)",
+    )
+    parser.add_argument(
         "--model", type=str, default=None,
         help="Override LLM model name",
     )
@@ -201,7 +205,7 @@ def main():
     args = parser.parse_args()
 
     # Build configuration
-    config = AgentConfig(llm=args.llm, mode=args.mode, verbose=args.verbose)
+    config = AgentConfig(llm=args.llm, mode=args.mode, verbose=args.verbose, critique_rounds=args.critique_rounds)
     if args.model:
         config.llm.model = args.model
     if args.base_url:

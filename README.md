@@ -97,6 +97,11 @@
 **端到端验证**：
 - Apollo 驻点热流 ReAct 测试通过（3.89 MW/m²，工具链完整：stagnation_heat_flux → knudsen_number → export_finding → generate_report）
 
+**自省迭代升级**（2026-06-12）：
+- `core/orchestrator.py`：新增 `critique_rounds` 参数（默认 2 轮），ReAct 主循环结束后进入 LLM 自审迭代，识别初版答案弱点并修订
+- `config.py` / `app.py` / `run_agent.py`：`--critique-rounds` CLI 参数，可配置自省轮数（设为 0 禁用）
+- `core/role.py`：强化 System Prompt，确保自省过程遵循身份约束
+
 ---
 
 ## 工具链（10 个）
@@ -295,6 +300,11 @@ Multi-step Reasoning → Evidence Chain Synthesis → Hypothesis Generation → 
 
 **End-to-End Validation**:
 - Apollo stagnation point heat flux ReAct test passed (3.89 MW/m², complete toolchain: stagnation_heat_flux → knudsen_number → export_finding → generate_report)
+
+**Self-Critique Iteration Upgrade** (2026-06-12):
+- `core/orchestrator.py`: Added `critique_rounds` parameter (default 2 rounds); after main ReAct loop, LLM enters self-review iteration to identify weaknesses in the initial draft and revise
+- `config.py` / `app.py` / `run_agent.py`: `--critique-rounds` CLI flag, configurable number of self-critique rounds (set to 0 to disable)
+- `core/role.py`: System Prompt reinforcement to ensure self-critique process follows identity constraints
 
 ---
 

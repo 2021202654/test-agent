@@ -52,14 +52,16 @@ class ReActOrchestrator:
         1. Send user query + available tools + conversation history to LLM
         2. LLM returns text (final answer) or tool_call (needs tool usage)
         3. If tool_call → execute tool → add result to history → back to step 1
-        4. If text → return final answer
+        4. If text → self-critique loop (N rounds) → return final answer
 
     Safety: max_steps caps tool calls to prevent infinite loops.
+    Self-critique rounds improve answer quality through iterative refinement.
     """
 
-    def __init__(self, llm: LLMInterface, max_steps: int = 8):
+    def __init__(self, llm: LLMInterface, max_steps: int = 8, critique_rounds: int = 2):
         self.llm = llm
         self.max_steps = max_steps
+        self.critique_rounds = critique_rounds  # Number of self-critique rounds after main loop
         self.verbose = False  # Set by Agent to print tool call details
 
     async def run(
@@ -190,6 +192,14 @@ class ReActOrchestrator:
             else:
                 final_reply = f"（Agent did not complete the task within {self.max_steps} steps, stopped.）"
 
+        # ── Self-critique loop: refine answer through iterative review ──
+        if final_reply and self.critique_rounds > 0:
+            final_reply = await self._self_critique(
+                task=task,
+                draft=final_reply,
+                role_context=role_context,
+            )
+
         # Generate final message
         result = Message.agent(
             content=final_reply,
@@ -198,6 +208,93 @@ class ReActOrchestrator:
         )
         memory.add_message(result)
         return result
+
+    # ── Self-Critique Loop ─────────────────────────────
+
+    async def _self_critique(
+        self,
+        task: str,
+        draft: str,
+        role_context: str,
+    ) -> str:
+        """Iteratively self-critique and revise the draft answer.
+
+        Each round:
+          1. LLM reviews the draft for weaknesses (missing evidence, over-claiming, etc.)
+          2. LLM produces a revised answer addressing those weaknesses
+          3. If no significant weaknesses found, keep current draft
+
+        Args:
+            task: Original user question
+            draft: Initial answer from the ReAct loop
+            role_context: System prompt (role constraints)
+
+        Returns:
+            Refined final answer after N critique rounds
+        """
+        current_draft = draft
+        critique_system = (
+            "You are a strict academic peer reviewer. Your job is to critically evaluate "
+            "research answers and identify specific weaknesses. "
+            "After each critique, you must produce a revised answer.\n"
+            "You must respond in the same language as the draft being reviewed.\n\n"
+            "For each round, output in this exact format:\n"
+            "## Critique\n"
+            "<specific weaknesses identified, or 'No significant issues found'>\n\n"
+            "## Revised Answer\n"
+            "<improved answer addressing the critique>"
+        )
+
+        for round_idx in range(1, self.critique_rounds + 1):
+            if self.verbose:
+                print(f"\n  [critique] Round {round_idx}/{self.critique_rounds}")
+
+            critique_prompt = (
+                f"Original Question:\n{task}\n\n"
+                f"Current Draft Answer:\n{current_draft}\n\n"
+                f"Please review the draft above and provide:\n"
+                f"1. A critical critique identifying specific weaknesses\n"
+                f"2. A revised answer that addresses those weaknesses"
+            )
+
+            try:
+                resp = await self.llm.chat([
+                    Message.system(critique_system),
+                    Message.system(role_context),
+                    Message.user(critique_prompt),
+                ])
+            except Exception as e:
+                if self.verbose:
+                    print(f"  [critique] Round {round_idx} failed: {e}, keeping current draft")
+                break
+
+            raw = resp.content or ""
+
+            # Parse: split on "## Revised Answer" (case-insensitive, single line)
+            import re
+            marker = re.search(r"##\s*Revised\s*Answer", raw, re.IGNORECASE)
+            if marker:
+                revised = raw[marker.end():].strip()
+                critique_text = raw[:marker.start()].strip()
+            else:
+                # Fallback: if format is wrong, treat entire response as revised
+                revised = raw
+                critique_text = ""
+
+            if self.verbose:
+                preview_critique = critique_text[:300] if critique_text else "(no critique extracted)"
+                print(f"  [critique] {preview_critique}...")
+                print(f"  [critique] Revised answer: {revised[:200]}...")
+
+            # Only update draft if we got meaningful revision content
+            if revised and len(revised) > max(len(current_draft) * 0.5, 50):
+                current_draft = revised
+            else:
+                if self.verbose:
+                    print(f"  [critique] No substantial improvement in round {round_idx}, keeping current draft")
+                break
+
+        return current_draft
 
 
 # ── Plan-Execute Mode ──────────────────────────────

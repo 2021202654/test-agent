@@ -50,11 +50,11 @@ _agent = None
 _config = None
 
 
-def build_agent(llm: str = "vllm_local", mode: str = "react", verbose: bool = False):
+def build_agent(llm: str = "vllm_local", mode: str = "react", verbose: bool = False, critique_rounds: int = 2):
     """Build and equip the Agent."""
     global _agent, _config
 
-    _config = AgentConfig(llm=llm, mode=mode, verbose=verbose)
+    _config = AgentConfig(llm=llm, mode=mode, verbose=verbose, critique_rounds=critique_rounds)
     _agent = _config.build_agent()
 
     # Equip all 9 tools
@@ -142,6 +142,10 @@ def main():
         "--share", action="store_true", default=False,
         help="Generate Gradio public URL (for non-DSW environments)",
     )
+    parser.add_argument(
+        "--critique-rounds", type=int, default=2,
+        help="Number of self-critique rounds after ReAct loop (default 2, set to 0 to disable)",
+    )
 
     args = parser.parse_args()
     llm = args.llm
@@ -149,7 +153,7 @@ def main():
         parser.error("--llm custom requires --base-url")
 
     # Build Agent
-    agent = build_agent(llm=llm, mode=args.mode, verbose=args.verbose)
+    agent = build_agent(llm=llm, mode=args.mode, verbose=args.verbose, critique_rounds=args.critique_rounds)
     if args.model:
         agent.llm.config.model = args.model
     if args.base_url:

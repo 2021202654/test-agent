@@ -175,6 +175,7 @@ class AgentConfig:
         mode: str = "react",
         max_react_steps: int = 15,
         max_plan_steps: int = 6,
+        critique_rounds: int = 2,  # Self-critique iterations after ReAct loop
         verbose: bool = False,
         # Path configuration
         faiss_index_dir: str | Path | None = None,
@@ -193,6 +194,7 @@ class AgentConfig:
         self.mode = mode
         self.max_react_steps = max_react_steps
         self.max_plan_steps = max_plan_steps
+        self.critique_rounds = critique_rounds
         self.verbose = verbose
 
         # Paths
@@ -233,6 +235,7 @@ class AgentConfig:
             mode=self.mode,
             max_react_steps=self.max_react_steps,
             max_plan_steps=self.max_plan_steps,
+            critique_rounds=self.critique_rounds,
             verbose=self.verbose,
         )
 

@@ -35,6 +35,9 @@ python run_agent.py --llm custom --base-url http://localhost:8000/v1
 
 # Plan-Execute 模式
 python run_agent.py --llm custom --mode plan_execute --task "评估气固界面催化模型跨尺度适用性"
+
+# 自省迭代（默认 2 轮，设为 0 可禁用）
+python run_agent.py --llm bailian --critique-rounds 3
 ```
 
 ### Gradio Web UI
@@ -111,6 +114,9 @@ python run_agent.py --llm custom --base-url http://localhost:8000/v1
 
 # Plan-Execute mode
 python run_agent.py --llm custom --mode plan_execute --task "Evaluate cross-scale applicability of gas-solid interface catalytic model"
+
+# Self-critique iteration (default 2 rounds, set to 0 to disable)
+python run_agent.py --llm bailian --critique-rounds 3
 ```
 
 ### Gradio Web UI

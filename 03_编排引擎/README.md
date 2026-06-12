@@ -16,17 +16,19 @@
 | **JSON 解析异常保护** | 工具参数格式错误不崩溃，返回格式友好的错误提示 |
 | **LRU 有界缓存** | `_BoundedCache`（max=100），相同工具+参数去重，防止无限循环和内存耗尽 |
 | **max_steps 上限** | 最多 `max_react_steps` 步（默认 8），防止无限循环 |
+| **自省循环** | `critique_rounds`（默认 2 轮），初版答案生成后 LLM 自审并修订，提高答案质量 |
 
 ### ReAct 循环
 
 ```
 User Input -> LLM(think) -> tool_call? --Yes--> execute tool -> observe -> LLM(think)
                                |
-                               No -> Final Answer
+                               No -> Self-Critique (N rounds) -> Final Answer
 ```
 
 - 最多 `max_react_steps` 步（默认 8）防止无限循环
 - 每步工具结果自动追加到对话上下文
+- **自省循环**（默认 2 轮）：初版答案生成后，LLM 充当审稿人指出弱点 → 修订 → 再审，直至收敛或达到轮数上限；可配置为 `0` 禁用
 
 ### Plan-Execute 循环
 
@@ -58,17 +60,19 @@ User Input -> Make Plan -> Step1(miniReAct) -> Step2 -> ... -> Synthesize
 | **JSON Parse Exception Protection** | Tool parameter format errors don't crash; returns user-friendly error messages |
 | **LRU Bounded Cache** | `_BoundedCache` (max=100), deduplicates identical tool+parameter calls to prevent infinite loops and memory exhaustion |
 | **max_steps Limit** | Maximum `max_react_steps` steps (default 8) to prevent infinite loops |
+| **Self-Critique Loop** | `critique_rounds` (default 2 rounds), LLM reviews and revises initial draft to improve answer quality |
 
 ### ReAct Loop
 
 ```
 User Input -> LLM(think) -> tool_call? --Yes--> execute tool -> observe -> LLM(think)
                                |
-                               No -> Final Answer
+                               No -> Self-Critique (N rounds) -> Final Answer
 ```
 
 - Maximum `max_react_steps` steps (default 8) to prevent infinite loops
 - Each step's tool result is automatically appended to the conversation context
+- **Self-critique loop** (default 2 rounds): after initial draft is generated, LLM acts as peer reviewer to identify weaknesses → revise → re-review until convergence or round limit; configurable to `0` to disable
 
 ### Plan-Execute Loop
 

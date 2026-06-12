@@ -41,6 +41,7 @@ class Agent:
         mode: str = "react",  # "react" | "plan_execute"
         max_react_steps: int = 12,
         max_plan_steps: int = 6,
+        critique_rounds: int = 2,  # Self-critique iterations after ReAct loop
         verbose: bool = False,
     ):
         self.llm = LLMInterface(llm_config or LLMConfig())
@@ -54,7 +55,7 @@ class Agent:
 
         self.mode = mode
         self.verbose = verbose
-        self._react = ReActOrchestrator(self.llm, max_steps=max_react_steps)
+        self._react = ReActOrchestrator(self.llm, max_steps=max_react_steps, critique_rounds=critique_rounds)
         self._react.verbose = verbose
         self._plan_execute = PlanExecuteOrchestrator(self.llm, max_react_steps=max_react_steps, max_plan_steps=max_plan_steps)
         self._plan_execute.verbose = verbose
