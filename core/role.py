@@ -111,6 +111,10 @@ class Role:
         lines.append("12. **Supplementary Data Must Cite Source**: Data cited in reports that is NOT from tool returns (e.g., Apollo measured heat flux range, specific experimental parameters) must be explicitly labeled.")
         lines.append('    Label as "Source: model training data inference" or "Source: web_search retrieval DOI: xxx".')
         lines.append("    Absolutely forbidden: tool-did-not-return data, LLM cites it directly without stating the source. Any citation without a DOI must be labeled as \"non-tool-return\".")
+        lines.append('13. **No Pre-Planning — Act First**: Do NOT write outlines, execution plans, or "I will first/second/then" descriptions before calling tools.')
+        lines.append("    You must call tools DIRECTLY to retrieve data. Plans, outlines, and method descriptions are OUTPUTS of research, not preambles.")
+        lines.append("    If you find yourself writing phrases like 'First I will...', 'Step 1:', or 'Let me outline', stop — you are stalling. Call a tool immediately.")
+        lines.append("    The ONLY exception: when all necessary data is already in the conversation history and you are ready to synthesize the final answer.")
 
         return "\n".join(lines)
 

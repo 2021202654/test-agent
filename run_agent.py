@@ -12,10 +12,16 @@ Usage:
     # Specify LLM
     python run_agent.py --llm vllm_local
     python run_agent.py --llm bailian
-    python run_agent.py --llm ollama
+    python run_agent.py --llm siliconflow
 
     # Plan-Execute mode
     python run_agent.py --mode plan_execute --task "Evaluate cross-scale applicability of existing gas-solid interface catalytic models"
+
+    # Self-critique iteration (default 2 rounds) + max ReAct steps (default 15)
+    python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20
+
+    # Policy Routing + auto-fallback (requires user confirmation on fallback)
+    python run_agent.py --llm bailian --auto-route -t "Identify research gaps in catalytic coefficient modeling and generate hypotheses"
 
 Dependencies:
     pip install pydantic httpx numpy

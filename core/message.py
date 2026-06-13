@@ -53,12 +53,39 @@ class Message(BaseModel):
         )
 
     def to_openai(self) -> dict[str, Any]:
-        """转为 OpenAI Chat Completions API 格式。"""
+        """转为 OpenAI Chat Completions API 格式（standard）或 Responses API 格式（qwen code models）。
+
+        Ensures function.arguments is always a JSON string (required by code models
+        like qwen3.5-plus; previously only a dict was stored internally).
+        For tool results: responses API uses call_id, chat completions uses tool_call_id.
+        """
+        import json
+
         msg: dict[str, Any] = {"role": self.role, "content": self.content}
         if self.tool_calls:
-            msg["tool_calls"] = self.tool_calls
+            sanitized = []
+            for tc in self.tool_calls:
+                func = tc.get("function", {})
+                args = func.get("arguments")
+                # Always serialize arguments to JSON string — code models require this
+                if isinstance(args, dict):
+                    args = json.dumps(args, ensure_ascii=False)
+                elif not isinstance(args, str):
+                    args = str(args) if args else "{}"
+                sanitized.append({
+                    "id": tc.get("id", ""),
+                    "type": "function",
+                    "function": {
+                        "name": func.get("name", ""),
+                        "arguments": args,
+                    }
+                })
+            msg["tool_calls"] = sanitized
         if self.tool_call_id:
+            # Chat Completions uses "tool_call_id"; Responses API uses "call_id"
+            # Include both for compatibility
             msg["tool_call_id"] = self.tool_call_id
+            msg["call_id"] = self.tool_call_id
         return msg
 
     def __str__(self) -> str:

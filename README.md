@@ -171,8 +171,11 @@ python run_agent.py --llm bailian --task "计算马赫数15下的驻点热流密
 # Plan-Execute 模式
 python run_agent.py --llm bailian --mode plan_execute --task "评估气固界面催化模型跨尺度适用性"
 
-# AI Scientist：假设生成
-python run_agent.py --llm bailian --verbose --task "分析气固界面催化系数建模的研究Gap，生成3个可验证假设"
+# 自省迭代（默认 2 轮）+ 最大步数上限（默认 15）
+python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20 -t "对比 SiO₂、SiC、RCG 在 1500K–3000K 的催化复合系数"
+
+# Policy Routing + 自动降级（需用户确认）
+python run_agent.py --llm bailian --auto-route -t "分析气固界面催化系数建模的 Gap 并生成假设"
 
 # 自定义 LLM 端点（vLLM / Ollama 等）
 python run_agent.py --llm custom --base-url http://localhost:8000/v1
@@ -189,6 +192,9 @@ python app.py --llm vllm_local
 
 # DSW 部署（自动获取公网链接）
 python app.py --llm custom --port 7860
+
+# 自省迭代 + 最大步数 + Policy Routing
+python app.py --llm bailian --critique-rounds 2 --max-react-steps 20 --auto-route
 ```
 
 ### DSW 部署
@@ -370,13 +376,16 @@ python run_agent.py --llm bailian
 python run_agent.py --llm siliconflow
 
 # Single task
-python run_agent.py --llm bailian --task "计算马赫数15下的驻点热流密度"
+python run_agent.py --llm bailian --task "Calculate stagnation-point heat flux at Mach 15"
 
 # Plan-Execute mode
-python run_agent.py --llm bailian --mode plan_execute --task "评估气固界面催化模型跨尺度适用性"
+python run_agent.py --llm bailian --mode plan_execute --task "Evaluate cross-scale applicability of gas-solid interface catalytic model"
 
-# AI Scientist: hypothesis generation
-python run_agent.py --llm bailian --verbose --task "分析气固界面催化系数建模的研究Gap，生成3个可验证假设"
+# Self-critique iteration (default 2 rounds) + max steps cap (default 15)
+python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20 -t "Compare catalytic recombination coefficients of SiO2, SiC, RCG at 1500K–3000K"
+
+# Policy Routing + auto-fallback (requires user confirmation)
+python run_agent.py --llm bailian --auto-route -t "Identify research gaps in catalytic coefficient modeling and generate hypotheses"
 
 # Custom LLM endpoint (vLLM / Ollama etc.)
 python run_agent.py --llm custom --base-url http://localhost:8000/v1
@@ -393,6 +402,9 @@ python app.py --llm vllm_local
 
 # DSW deployment (auto-fetch public URL)
 python app.py --llm custom --port 7860
+
+# With self-critique + max steps + auto-route
+python app.py --llm bailian --critique-rounds 2 --max-react-steps 20 --auto-route
 ```
 
 ### DSW Deployment

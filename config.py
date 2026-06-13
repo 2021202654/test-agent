@@ -62,9 +62,9 @@ def _bailian_config() -> LLMConfig:
     return LLMConfig(
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         api_key=os.getenv("DASHSCOPE_API_KEY", "your-api-key-here"),
-        model="qwen-plus",
+        model="qwen3.5-plus",
         temperature=0.3,
-        max_tokens=2048,
+        max_tokens=4096,
         preset_name="bailian",
     )
 
@@ -76,7 +76,7 @@ def _vllm_local_config() -> LLMConfig:
         api_key="not-needed",
         model="aero-thermal-expert",
         temperature=0.3,
-        max_tokens=2048,
+        max_tokens=4096,
         preset_name="vllm_local",
     )
 
@@ -88,7 +88,7 @@ def _ollama_config() -> LLMConfig:
         api_key="not-needed",
         model="llama3.1:8b",
         temperature=0.3,
-        max_tokens=2048,
+        max_tokens=4096,
         preset_name="ollama",
     )
 
@@ -100,7 +100,7 @@ def _siliconflow_config() -> LLMConfig:
         api_key=os.getenv("SILICONFLOW_API_KEY", "your-api-key-here"),
         model="deepseek-ai/DeepSeek-V3",
         temperature=0.3,
-        max_tokens=2048,
+        max_tokens=4096,
         preset_name="siliconflow",
     )
 

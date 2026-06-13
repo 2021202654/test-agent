@@ -113,6 +113,7 @@ class CodeExecutionTool(Action):
                         [sys.executable, "-m", "pip", "install", pkg, "-q"],
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
                         timeout=60,
                         cwd=str(self._work_dir),
                     )
@@ -141,6 +142,7 @@ class CodeExecutionTool(Action):
                 [sys.executable, str(script_path)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=timeout,
                 cwd=str(self._work_dir),
                 env=env,

@@ -36,8 +36,11 @@ python run_agent.py --llm custom --base-url http://localhost:8000/v1
 # Plan-Execute 模式
 python run_agent.py --llm custom --mode plan_execute --task "评估气固界面催化模型跨尺度适用性"
 
-# 自省迭代（默认 2 轮，设为 0 可禁用）
-python run_agent.py --llm bailian --critique-rounds 3
+# 自省迭代（默认 2 轮，设为 0 可禁用）+ 最大步数上限
+python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20
+
+# Policy Routing + 自动降级（需用户确认）
+python run_agent.py --llm bailian --auto-route -t "对比 SiO₂、SiC、RCG 在 1500K–3000K 的催化复合系数"
 ```
 
 ### Gradio Web UI
@@ -115,8 +118,11 @@ python run_agent.py --llm custom --base-url http://localhost:8000/v1
 # Plan-Execute mode
 python run_agent.py --llm custom --mode plan_execute --task "Evaluate cross-scale applicability of gas-solid interface catalytic model"
 
-# Self-critique iteration (default 2 rounds, set to 0 to disable)
-python run_agent.py --llm bailian --critique-rounds 3
+# Self-critique iteration (default 2 rounds, set to 0 to disable) + max steps cap
+python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20
+
+# Policy Routing + auto-fallback (requires user confirmation)
+python run_agent.py --llm bailian --auto-route -t "Compare catalytic recombination coefficients of SiO2, SiC, RCG at 1500K–3000K"
 ```
 
 ### Gradio Web UI

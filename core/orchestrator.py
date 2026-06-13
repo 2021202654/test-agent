@@ -82,15 +82,20 @@ class ReActOrchestrator:
         steps = 0
         final_reply = ""
         _call_cache = _BoundedCache()  # Bounded LRU cache, max 100 entries
+        # Responses API: track response_id for multi-turn continuity
+        _response_id: str | None = None
 
         while steps < self.max_steps:
             steps += 1
 
             # ── Call LLM ──
             if tool_schemas:
-                response = await self.llm.chat_with_tools(messages, tool_schemas)
+                response = await self.llm.chat_with_tools(messages, tool_schemas, _response_id=_response_id)
             else:
                 response = await self.llm.chat(messages)
+
+            # Update response_id for Responses API multi-turn continuity
+            _response_id = response.metadata.get("response_id") or _response_id
 
             # ── Case 1: LLM returns text with NO tool calls (task done) ──
             if response.content and not response.tool_calls:
@@ -112,8 +117,10 @@ class ReActOrchestrator:
 
                 for tc in response.tool_calls:
                     func_name = tc["function"]["name"]
+                    raw_args = tc["function"]["arguments"]
                     try:
-                        func_args = json.loads(tc["function"]["arguments"])
+                        # arguments may be a dict (internal format) or a JSON string (API format)
+                        func_args = raw_args if isinstance(raw_args, dict) else json.loads(raw_args)
                     except json.JSONDecodeError as e:
                         tool_result = (
                             f"[arguments parse error] Tool '{func_name}' received malformed JSON arguments: {e}. "
