@@ -58,10 +58,17 @@ class ReActOrchestrator:
     Self-critique rounds improve answer quality through iterative refinement.
     """
 
-    def __init__(self, llm: LLMInterface, max_steps: int = 8, critique_rounds: int = 2):
+    def __init__(
+        self,
+        llm: LLMInterface,
+        max_steps: int = 8,
+        critique_rounds: int = 2,
+        self_consistency: int = 1,  # Number of consistency samples (1 = disabled)
+    ):
         self.llm = llm
         self.max_steps = max_steps
         self.critique_rounds = critique_rounds  # Number of self-critique rounds after main loop
+        self.self_consistency = self_consistency  # Number of consistency samples (1 = disabled, 3+ enables voting)
         self.verbose = False  # Set by Agent to print tool call details
 
     async def run(
@@ -215,6 +222,15 @@ class ReActOrchestrator:
                 role_context=role_context,
             )
 
+        # ── Self-consistency: sample N answers and pick the most consistent ──
+        if final_reply and self.self_consistency >= 3:
+            final_reply = await self._self_consistency(
+                task=task,
+                draft=final_reply,
+                role_context=role_context,
+                n_samples=self.self_consistency,
+            )
+
         # Generate final message
         result = Message.agent(
             content=final_reply,
@@ -310,6 +326,106 @@ class ReActOrchestrator:
                 break
 
         return current_draft
+
+    # ── Self-Consistency Voting ──────────────────────────────
+
+    async def _self_consistency(
+        self,
+        task: str,
+        draft: str,
+        role_context: str,
+        n_samples: int = 3,
+    ) -> str:
+        """Sample N variants of the final answer, then pick the most consistent one.
+
+        Wang et al. 2022 "Self-Consistency Improves Chain of Thought Reasoning in Language Models"
+        — particularly helpful for smaller / open-source models (e.g. Llama-3.1-8B)
+        where single-shot reasoning is unstable.
+
+        Algorithm (lightweight, single extra LLM call):
+          1. Sample (n_samples - 1) additional "core takeaway" statements from the LLM,
+             each asked to extract the 1-2 sentence conclusion from `draft`.
+          2. Ask the LLM to pick which variant (draft or one of the samples) is most
+             semantically consistent with the majority view.
+          3. Return the chosen variant.
+
+        Cost: (n_samples - 1) extra short LLM calls + 1 voting call. Default n_samples=3
+        gives ~4 extra calls. For 8B models this is a worthwhile trade.
+
+        Args:
+            task: Original user question.
+            draft: Initial answer (after self-critique).
+            role_context: System prompt.
+            n_samples: Total number of variants to compare (>=3 to be effective).
+
+        Returns:
+            The most consistent answer variant.
+        """
+        try:
+            # Step 1: Generate (n_samples - 1) alternative "core takeaway" extractions
+            variants = [draft]
+            for i in range(n_samples - 1):
+                extract_prompt = (
+                    f"Read the following answer to the question below, then write the "
+                    f"core takeaway in 1-2 sentences (variant #{i + 1}). Keep the same "
+                    f"factual content but vary the wording slightly to reflect an "
+                    f"independent reasoning pass.\n\n"
+                    f"Question: {task}\n\n"
+                    f"Answer:\n{draft}\n\n"
+                    f"Core takeaway (variant #{i + 1}):"
+                )
+                try:
+                    resp = await self.llm.chat(
+                        [Message.system(role_context), Message.user(extract_prompt)]
+                    )
+                    if resp.content:
+                        variants.append(resp.content.strip())
+                except Exception as e:
+                    # If a sample fails, skip it but don't break the whole flow
+                    if self.verbose:
+                        print(f"  [consistency] sample #{i + 1} failed: {e}")
+
+            if len(variants) < 2:
+                # Not enough samples to vote; return original draft
+                return draft
+
+            # Step 2: Ask LLM to vote — which variant is most consistent with the majority?
+            vote_prompt = (
+                f"You are given {len(variants)} candidate answers to the same question. "
+                f"Your job: identify which candidate is most factually consistent with "
+                f"the others (i.e. would survive majority agreement).\n\n"
+                f"Question: {task}\n\n"
+                + "\n\n---\n\n".join(
+                    f"Candidate #{i + 1}:\n{v}" for i, v in enumerate(variants)
+                )
+                + f"\n\n---\n\nRespond with ONLY the candidate number (1-{len(variants)}) "
+                f"that best represents the majority view. No explanation."
+            )
+            try:
+                vote_resp = await self.llm.chat(
+                    [Message.system(role_context), Message.user(vote_prompt)]
+                )
+                choice = vote_resp.content.strip()
+                # Parse the number; default to 1 (the original draft) if unclear
+                import re
+                m = re.search(r"\b([1-9]\d?)\b", choice)
+                if m:
+                    idx = int(m.group(1)) - 1
+                    if 0 <= idx < len(variants):
+                        chosen = variants[idx]
+                        if self.verbose:
+                            print(f"  [consistency] chose variant #{idx + 1} of {len(variants)}")
+                        return chosen
+            except Exception as e:
+                if self.verbose:
+                    print(f"  [consistency] voting failed: {e}")
+
+            return draft
+        except Exception as e:
+            # Self-consistency must NEVER break the main flow
+            if self.verbose:
+                print(f"  [consistency] error, falling back to draft: {e}")
+            return draft
 
 
 # ── Plan-Execute Mode ──────────────────────────────

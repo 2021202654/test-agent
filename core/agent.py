@@ -66,6 +66,7 @@ class Agent:
         max_react_steps: int = 12,
         max_plan_steps: int = 6,
         critique_rounds: int = 2,  # Self-critique iterations after ReAct loop
+        self_consistency: int = 1,  # 1 = disabled; 3+ enables voting (great for 8B models)
         auto_route: bool = False,   # enable LLM-based complexity routing
         verbose: bool = False,
     ):
@@ -81,7 +82,7 @@ class Agent:
         self.mode = mode
         self.verbose = verbose
         self.auto_route = auto_route
-        self._react = ReActOrchestrator(self.llm, max_steps=max_react_steps, critique_rounds=critique_rounds)
+        self._react = ReActOrchestrator(self.llm, max_steps=max_react_steps, critique_rounds=critique_rounds, self_consistency=self_consistency)
         self._react.verbose = verbose
         self._plan_execute = PlanExecuteOrchestrator(self.llm, max_react_steps=max_react_steps, max_plan_steps=max_plan_steps)
         self._plan_execute.verbose = verbose

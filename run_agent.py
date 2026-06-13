@@ -242,6 +242,10 @@ def main():
         help="Number of self-critique rounds after ReAct loop (default 2, set to 0 to disable)",
     )
     parser.add_argument(
+        "--self-consistency", type=int, default=1,
+        help="Number of consistency samples (default 1 = disabled, 3+ enables voting — great for 8B models)",
+    )
+    parser.add_argument(
         "--max-react-steps", type=int, default=15,
         help="Maximum ReAct steps before forced synthesis (default 15)",
     )
@@ -261,7 +265,7 @@ def main():
     args = parser.parse_args()
 
     # Build configuration
-    config = AgentConfig(llm=args.llm, mode=args.mode, verbose=args.verbose, critique_rounds=args.critique_rounds, max_react_steps=args.max_react_steps, auto_route=args.auto_route)
+    config = AgentConfig(llm=args.llm, mode=args.mode, verbose=args.verbose, critique_rounds=args.critique_rounds, self_consistency=args.self_consistency, max_react_steps=args.max_react_steps, auto_route=args.auto_route)
     if args.model:
         config.llm.model = args.model
     if args.base_url:

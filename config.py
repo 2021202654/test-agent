@@ -203,6 +203,7 @@ class AgentConfig:
         max_react_steps: int = 15,
         max_plan_steps: int = 6,
         critique_rounds: int = 2,  # Self-critique iterations after ReAct loop
+        self_consistency: int = 1,  # 1 = disabled; 3+ enables voting (great for 8B models)
         auto_route: bool = False,  # Enable LLM-based complexity routing + auto-fallback
         verbose: bool = False,
         # Path configuration
@@ -223,6 +224,7 @@ class AgentConfig:
         self.max_react_steps = max_react_steps
         self.max_plan_steps = max_plan_steps
         self.critique_rounds = critique_rounds
+        self.self_consistency = self_consistency
         self.auto_route = auto_route
         self.verbose = verbose
 
@@ -265,6 +267,7 @@ class AgentConfig:
             max_react_steps=self.max_react_steps,
             max_plan_steps=self.max_plan_steps,
             critique_rounds=self.critique_rounds,
+            self_consistency=self.self_consistency,
             auto_route=self.auto_route,
             verbose=self.verbose,
         )

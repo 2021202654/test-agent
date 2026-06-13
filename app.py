@@ -51,11 +51,11 @@ _config = None
 _pending_fallback: dict = {}  # {"suggested_preset": str, "reason": str}
 
 
-def build_agent(llm: str = "vllm_local", mode: str = "react", verbose: bool = False, critique_rounds: int = 2, max_react_steps: int = 15, auto_route: bool = False):
+def build_agent(llm: str = "vllm_local", mode: str = "react", verbose: bool = False, critique_rounds: int = 2, self_consistency: int = 1, max_react_steps: int = 15, auto_route: bool = False):
     """Build and equip the Agent."""
     global _agent, _config
 
-    _config = AgentConfig(llm=llm, mode=mode, verbose=verbose, critique_rounds=critique_rounds, max_react_steps=max_react_steps, auto_route=auto_route)
+    _config = AgentConfig(llm=llm, mode=mode, verbose=verbose, critique_rounds=critique_rounds, self_consistency=self_consistency, max_react_steps=max_react_steps, auto_route=auto_route)
     _agent = _config.build_agent()
 
     # Equip all 9 tools
@@ -185,6 +185,10 @@ def main():
         help="Number of self-critique rounds after ReAct loop (default 2, set to 0 to disable)",
     )
     parser.add_argument(
+        "--self-consistency", type=int, default=1,
+        help="Number of consistency samples (default 1 = disabled, 3+ enables voting — great for 8B models)",
+    )
+    parser.add_argument(
         "--max-react-steps", type=int, default=15,
         help="Maximum ReAct steps before forced synthesis (default 15)",
     )
@@ -199,7 +203,7 @@ def main():
         parser.error("--llm custom requires --base-url")
 
     # Build Agent
-    agent = build_agent(llm=llm, mode=args.mode, verbose=args.verbose, critique_rounds=args.critique_rounds, max_react_steps=args.max_react_steps, auto_route=args.auto_route)
+    agent = build_agent(llm=llm, mode=args.mode, verbose=args.verbose, critique_rounds=args.critique_rounds, self_consistency=args.self_consistency, max_react_steps=args.max_react_steps, auto_route=args.auto_route)
     if args.model:
         agent.llm.config.model = args.model
     if args.base_url:
