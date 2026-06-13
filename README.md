@@ -102,6 +102,19 @@
 - `config.py` / `app.py` / `run_agent.py`：`--critique-rounds` CLI 参数，可配置自省轮数（设为 0 禁用）
 - `core/role.py`：强化 System Prompt，确保自省过程遵循身份约束
 
+**qwen3.5-plus 支持 + Responses API**（2026-06-13）：
+- `core/llm.py`：双轨 API 支持 — Chat Completions（通用模型）+ Responses API（代码模型 qwen3.5-plus 等）
+- `core/message.py`：`to_openai()` 增加 `call_id` 字段，兼容 Responses API 工具结果格式
+- `core/orchestrator.py`：新增 `_response_id` 追踪，Responses API 多轮工具调用上下文连贯
+- `config.py`：所有 preset `max_tokens` 2048 → 4096
+- `core/role.py`：新增 Rule 13 — **禁止先写计划再执行**，必须直接调用工具获取数据
+
+**Policy Routing + Capability Fallback**（2026-06-13）：
+- `core/policy_router.py`：**全新文件** — LLM 自评估任务复杂度（simple/moderate/complex），自动路由到合适模型预设
+- `core/agent.py`：`FallbackSignal` + `AgentResult` 数据结构；`FallbackManager` 在 API 失败时自动尝试降级（bailian → siliconflow → ollama），用户确认后切换
+- `config.py`：`FALLBACK_CHAINS` 定义每个 preset 的降级顺序；`POLICY_ROUTES` 定义复杂度路由策略
+- `--auto-route` CLI 参数：开启策略路由模式
+
 ---
 
 ## 工具链（10 个）
@@ -126,7 +139,7 @@
 ```
 core/
 ├── message.py      # 消息体（user/agent/system/tool）
-├── llm.py          # OpenAI 兼容 API 接口（vLLM / 百炼 / Ollama）
+├── llm.py          # OpenAI 兼容 API 接口（vLLM / 百炼 / Ollama），双轨支持 Chat Completions + Responses API
 ├── action.py       # 工具基类 + 注册表
 ├── memory.py       # 短期 + 工作 + 长期记忆
 ├── role.py         # Agent 身份/目标/约束
@@ -146,6 +159,7 @@ tools/
 └── physics_constraints.py # 🆕 物理约束验证层
 
 config.py           # 统一配置（5 套 LLM 预设：bailian/siliconflow/vllm_local/ollama/custom）
+policy_router.py    # Policy Router：LLM 复杂度自评估 + 自动路由 + 降级链
 run_agent.py        # CLI 入口（--llm siliconflow 🆕）
 app.py              # Gradio Web UI 入口
 ```
@@ -312,6 +326,19 @@ Multi-step Reasoning → Evidence Chain Synthesis → Hypothesis Generation → 
 - `config.py` / `app.py` / `run_agent.py`: `--critique-rounds` CLI flag, configurable number of self-critique rounds (set to 0 to disable)
 - `core/role.py`: System Prompt reinforcement to ensure self-critique process follows identity constraints
 
+**qwen3.5-plus Support + Responses API** (2026-06-13):
+- `core/llm.py`: Dual-API support — Chat Completions (general models) + Responses API (code models e.g. qwen3.5-plus)
+- `core/message.py`: `to_openai()` adds `call_id` field, compatible with Responses API tool result format
+- `core/orchestrator.py`: New `_response_id` tracking for multi-turn tool call continuity in Responses API
+- `config.py`: All presets `max_tokens` 2048 → 4096
+- `core/role.py`: New Rule 13 — **No pre-planning; call tools directly**. Plans only appear after all data is collected
+
+**Policy Routing + Capability Fallback** (2026-06-13):
+- `core/policy_router.py`: **New file** — LLM self-assesses task complexity (simple/moderate/complex), auto-routes to appropriate model preset
+- `core/agent.py`: `FallbackSignal` + `AgentResult` data structures; `FallbackManager` auto-retries with fallback model on API failure (bailian → siliconflow → ollama), requires user confirmation
+- `config.py`: `FALLBACK_CHAINS` defines fallback order per preset; `POLICY_ROUTES` defines complexity routing strategy
+- `--auto-route` CLI flag: Enable policy routing mode
+
 ---
 
 ## Toolchain (10 Tools)
@@ -356,6 +383,7 @@ tools/
 └── physics_constraints.py # 🆕 Physics constraint verification layer
 
 config.py           # Unified configuration (5 LLM presets: bailian/siliconflow/vllm_local/ollama/custom)
+policy_router.py    # Policy Router: LLM complexity self-assessment + auto-routing + fallback chain
 run_agent.py        # CLI entry point (--llm siliconflow 🆕)
 app.py              # Gradio Web UI entry
 ```

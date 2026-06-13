@@ -27,7 +27,7 @@ DSW 实例（V100 16GB / A10 24GB）
 ```bash
 cd 05_AI_Agent
 
-# 百炼 API（即开即用）
+# 百炼 API（即开即用，默认 qwen3.5-plus，支持 Responses API）
 python run_agent.py --llm bailian
 
 # DSW vLLM
@@ -37,10 +37,10 @@ python run_agent.py --llm custom --base-url http://localhost:8000/v1
 python run_agent.py --llm custom --mode plan_execute --task "评估气固界面催化模型跨尺度适用性"
 
 # 自省迭代（默认 2 轮，设为 0 可禁用）+ 最大步数上限
-python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20
+python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20 -t "对比 SiO₂、SiC、RCG 在 1500K–3000K 的催化复合系数"
 
 # Policy Routing + 自动降级（需用户确认）
-python run_agent.py --llm bailian --auto-route -t "对比 SiO₂、SiC、RCG 在 1500K–3000K 的催化复合系数"
+python run_agent.py --llm bailian --auto-route -t "分析气固界面催化系数建模的 Gap 并生成假设"
 ```
 
 ### Gradio Web UI
@@ -73,10 +73,12 @@ python app.py --llm bailian
 | 后端 | 配置 | 适用场景 |
 |------|------|------|
 | vLLM (DSW) | `localhost:8000/v1` | 微调模型推理 |
-| 百炼 API | `dashscope.aliyuncs.com` | 开发/调试/QA 生成 |
+| 百炼 API（qwen3.5-plus） | `dashscope.aliyuncs.com` | 开发/调试/QA 生成，Responses API |
+| 百炼 API（qwen-plus） | `dashscope.aliyuncs.com` | Chat Completions API，兼容 function calling |
 | Ollama | `localhost:11434/v1` | 本地快速验证 |
 
-`config.py` 提供 4 套预设：`vllm_local` / `bailian` / `ollama` / `custom`
+`config.py` 提供 5 套预设：`vllm_local` / `bailian` / `siliconflow` / `ollama` / `custom`
+> 注意：`bailian` 预设当前使用 `qwen3.5-plus`（代码模型，需 Responses API）。如需 Chat Completions + function calling，改为 `qwen-plus`。
 
 ---
 
@@ -109,7 +111,7 @@ DSW Instance (V100 16GB / A10 24GB)
 ```bash
 cd 05_AI_Agent
 
-# Bailian API (ready to use)
+# Bailian API (ready to use, default qwen3.5-plus, supports Responses API)
 python run_agent.py --llm bailian
 
 # DSW vLLM
@@ -119,10 +121,10 @@ python run_agent.py --llm custom --base-url http://localhost:8000/v1
 python run_agent.py --llm custom --mode plan_execute --task "Evaluate cross-scale applicability of gas-solid interface catalytic model"
 
 # Self-critique iteration (default 2 rounds, set to 0 to disable) + max steps cap
-python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20
+python run_agent.py --llm bailian --critique-rounds 2 --max-react-steps 20 -t "Compare catalytic recombination coefficients of SiO2, SiC, RCG at 1500K–3000K"
 
 # Policy Routing + auto-fallback (requires user confirmation)
-python run_agent.py --llm bailian --auto-route -t "Compare catalytic recombination coefficients of SiO2, SiC, RCG at 1500K–3000K"
+python run_agent.py --llm bailian --auto-route -t "Identify research gaps in catalytic coefficient modeling and generate hypotheses"
 ```
 
 ### Gradio Web UI
@@ -155,7 +157,9 @@ Execute the 4 notebooks under `04_LLM微调线/04_推理部署/` in order:
 | Backend | Config | Use Case |
 |------|------|------|
 | vLLM (DSW) | `localhost:8000/v1` | Fine-tuned model inference |
-| Bailian API | `dashscope.aliyuncs.com` | Development / Debugging / QA generation |
+| Bailian API (qwen3.5-plus) | `dashscope.aliyuncs.com` | Development/QA, Responses API, code model |
+| Bailian API (qwen-plus) | `dashscope.aliyuncs.com` | Chat Completions API, function calling |
 | Ollama | `localhost:11434/v1` | Local quick validation |
 
-`config.py` provides 4 presets: `vllm_local` / `bailian` / `ollama` / `custom`
+`config.py` provides 5 presets: `vllm_local` / `bailian` / `siliconflow` / `ollama` / `custom`
+> Note: `bailian` preset currently uses `qwen3.5-plus` (code model, requires Responses API). For Chat Completions + function calling, switch to `qwen-plus`.

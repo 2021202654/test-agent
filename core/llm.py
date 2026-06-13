@@ -142,7 +142,7 @@ class LLMInterface:
 
         body: dict[str, Any] = {
             "model": self.config.model,
-            "input": {"messages": input_messages},
+            "input": input_messages,  # Direct array of message objects, not {"messages": ...}
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
         }
