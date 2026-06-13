@@ -2,7 +2,7 @@
 """Minimal function-calling test against bailian API."""
 import asyncio, json, httpx
 
-API_KEY = "sk-ae11d8616b4f480284b1332dcff71e48"
+API_KEY = "sk"
 BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 async def test():
