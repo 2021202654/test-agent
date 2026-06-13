@@ -88,7 +88,6 @@
 **安全审计修复**：
 - `core/orchestrator.py`：JSON 解析异常保护（try/except）；新增 `_BoundedCache` LRU 有界缓存（max=100），替换无限 dict 缓存
 - `tools/code_exec.py`：pip install 参数注入防御（包名白名单正则 + 禁止 `--index-url` 等危险 flag）
-- `.env`：百炼 API Key 已轮换
 
 **System Prompt 幻觉防御强化**：
 - `core/role.py`：新增规则 3（参数溯源强制）、规则 8（工具警告传递）、规则 11（公式名称与工具返回完全一致）、规则 12（补充数据标注来源）
@@ -96,6 +95,12 @@
 
 **端到端验证**：
 - Apollo 驻点热流 ReAct 测试通过（3.89 MW/m²，工具链完整：stagnation_heat_flux → knudsen_number → export_finding → generate_report）
+
+**API Key 治理（2026-06-13 修复）**：
+- 发现 `_test_fc.py` 第 5 行硬编码了与 `.env` 同源的百炼 API Key，且 README 2026-06-11 记录的"已轮换"实际未生效（同一 key 仍在 `.env` 中）
+- 已吊销旧 key 并在百炼控制台重置
+- `_test_fc.py` 改为从环境变量 / `.env` 自动加载，不再硬编码任何凭证
+- `05_AI_Agent/.gitignore` 与根 `.gitignore` 加固兜底规则，详见 `07_项目文档/推送前自检checklist.md`
 
 **自省迭代升级**（2026-06-12）：
 - `core/orchestrator.py`：新增 `critique_rounds` 参数（默认 2 轮），ReAct 主循环结束后进入 LLM 自审迭代，识别初版答案弱点并修订

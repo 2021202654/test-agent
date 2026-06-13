@@ -9,12 +9,32 @@ build/
 
 # 环境 & 密钥
 .env
+.env.*
+!.env.example
 llm_config.json
+!llm_config.example.json
+
+# ── 兜底隐私规则（防止硬编码 key 误提交）──────────────────
+# 任何名字带 secret/credential/key/password/token 的文件一律排除
+**/*secret*
+**/*credential*
+**/*password*
+**/*token*
+# 下划线开头或带 test 的本地测试脚本（容易临时硬编码 key）
+# 用 **/ 前缀确保在所有子目录生效，避免 _ 开头的特殊解析
+**/_*test*.py
+**/*_test_*.py
+**/test_*.py
+**/debug_*.py
+**/scratch_*.py
+**/*_hardcode*.py
+**/*_bak*.py
 
 # 运行产出
 reports/
 findings/
 exports/
+outputs/
 
 # 临时文件
 *.tmp
