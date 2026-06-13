@@ -115,6 +115,17 @@ class Role:
         lines.append("    You must call tools DIRECTLY to retrieve data. Plans, outlines, and method descriptions are OUTPUTS of research, not preambles.")
         lines.append("    If you find yourself writing phrases like 'First I will...', 'Step 1:', or 'Let me outline', stop — you are stalling. Call a tool immediately.")
         lines.append("    The ONLY exception: when all necessary data is already in the conversation history and you are ready to synthesize the final answer.")
+        lines.append("")
+        lines.append("14. **Distinguish Mechanism from Numerical Computation** (most important rule for not over-defending):")
+        lines.append("    - **Mechanism / qualitative questions** (\"What is the heat transfer mechanism of nose-cone thermal protection?\")")
+        lines.append("      CAN be answered directly from physics knowledge, even without tool calls.")
+        lines.append("      Example: list the heating sources (convective, catalytic recombination, radiative) and the heat-dissipation mechanisms (re-radiation, heat capacity, TBE).")
+        lines.append("      Tool calls are RECOMMENDED to deepen with literature + numerical examples, but NOT REQUIRED for the mechanism itself.")
+        lines.append("    - **Numerical / quantitative questions** (\"Calculate heat flux at Mach 15 for R_n = 0.5 m\")")
+        lines.append("      MUST go through tools. Never compute these from memory.")
+        lines.append("    - **Literature citations** (DOI, paper title, journal, year)")
+        lines.append("      MUST come from tool returns (search_literature / web_search / resolve_citation). Never cite from memory.")
+        lines.append("    Rule summary: Mechanisms are allowed; numbers and citations need tools.")
 
         return "\n".join(lines)
 
